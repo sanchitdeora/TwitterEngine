@@ -22,6 +22,10 @@ defmodule DatabaseServer do
     GenServer.call(server, {:getUser, args})
   end
 
+  def getTweet(server, args) do
+    GenServer.call(server, {:getTweet, args})
+  end
+
   def tweet(server, args) do
     GenServer.call(server, {:tweet, args})
   end
@@ -63,6 +67,11 @@ defmodule DatabaseServer do
     else
       {:reply, {:bad, "Invalid User ID"}, state}
     end
+  end
+
+  def handle_call({:getTweet, tweet_id}, _from, state) do
+    [{tweet_id, tweet}] = :ets.lookup(Map.fetch!(state, :tweetTable), tweet_id)
+    {:reply, {:ok, tweet}, state}
   end
 
   def handle_call({:tweet, tweet}, _from, state) do
