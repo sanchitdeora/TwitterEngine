@@ -32,5 +32,4 @@ defmodule TwitterLoadBalance do
     next_pid = Enum.at(processerList, nextProcessorIndex)
     {:reply, {:redirect, next_pid}, state}
   end
-
 end

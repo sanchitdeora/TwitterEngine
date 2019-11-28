@@ -34,6 +34,14 @@ defmodule TwitterProcessor do
     GenServer.call(server, {:getMyMentions, args})
   end
 
+  def retweet(server, args) do
+    GenServer.call(server, {:retweet, args})
+  end
+
+  def getMyRetweets(server, args) do
+    GenServer.call(server, {:getMyRetweets, args})
+  end
+
   def getSubscribedTweets(server, args) do
     GenServer.call(server, {:getSubscribedTweets, args})
   end
@@ -50,7 +58,7 @@ defmodule TwitterProcessor do
     {code, message} = ifCredentialsNonEmpty(username, password)
 
     if code == :ok do
-      newUser = %{:username => username, :password => password, :tweets => [], :following => [], :ifDeleted => false}
+      newUser = %{:username => username, :password => password, :tweets => [], :following => [], :mentions => [], :retweets => [], :ifDeleted => false}
       {code, message} = DatabaseServer.createUser(state, newUser)
       {:reply, {code, message}, state}
     else
@@ -97,8 +105,17 @@ defmodule TwitterProcessor do
         mentionsList = List.flatten(Regex.scan(mentionsRegex,tweet))
         hashtagList = List.flatten(Regex.scan(hashtagRegex,tweet))
         Enum.each(hashtagList, fn hashtag ->
-#          IO.inspect(hashtag, label: "Strong hashtag")
           DatabaseServer.putHashtag(state, {hashtag, tweet_id})
+        end)
+
+        Enum.each(mentionsList, fn mention ->
+          mentionedUsername = String.slice(mention, 1..-1)
+          {code, mentionedUser} = DatabaseServer.getUser(state, mentionedUsername)
+          if code == :ok && Map.fetch!(mentionedUser, :ifDeleted) == false do
+            myMentions = Map.fetch!(mentionedUser, :mentions)
+            updatedMentionedUser = Map.replace!(mentionedUser, :mentions, myMentions ++ [tweet_id])
+            DatabaseServer.updateUser(state, updatedMentionedUser)
+          end
         end)
 
         tweets = Map.fetch!(user, :tweets)
@@ -154,14 +171,14 @@ defmodule TwitterProcessor do
               tweet_ids = Map.fetch!(subscribedUser, :tweets)
               tweets = Enum.map(tweet_ids, fn curr_tid ->
                 {code, tweet} = DatabaseServer.getTweet(state, curr_tid)
-                tweet
+                {curr_tid, tweet}
               end)
               tweets
             else
               []
             end
         end)
-        IO.inspect(List.flatten(subscribedTweets)|> Enum.sort_by(&(elem(&1, 1))))
+        IO.inspect(List.flatten(subscribedTweets)|> Enum.sort_by(&(elem(&1, 0))))
         {:reply, {:ok, "Success"}, state}
     end
   end
@@ -175,11 +192,68 @@ defmodule TwitterProcessor do
         {code, tweetIDList} = DatabaseServer.getHashtag(state, tag)
         tweets = Enum.map(tweetIDList, fn curr_tid ->
           {code, tweet} = DatabaseServer.getTweet(state, curr_tid)
-          tweet
+          {curr_tid, tweet}
         end)
-        ret = List.flatten(tweets)|> Enum.sort_by(&(elem(&1, 1)))
+        ret = List.flatten(tweets)|> Enum.sort_by(&(elem(&1, 0)))
+#        IO.inspect(ret)
+        {:reply, {:ok, ret}, state}
+    end
+  end
+
+  def handle_call({:getMyMentions, args}, _from, state) do
+    {username, password} = args
+    username = String.trim(username) |> String.downcase()
+    {code, message} = credentialCheck(username, password, state)
+    cond do
+      code == :bad ->
+        {:reply, {code, message}, state}
+      true ->
+        {result, user} = DatabaseServer.getUser(state, username)
+        mentionIDs = Map.fetch!(user, :mentions)
+        mentions = Enum.map(mentionIDs, fn curr_tid ->
+          {code, tweet} = DatabaseServer.getTweet(state, curr_tid)
+          {curr_tid, tweet}
+        end)
+        ret = List.flatten(mentions)|> Enum.sort_by(&(elem(&1, 0)))
         IO.inspect(ret)
         {:reply, {:ok, ret}, state}
+    end
+  end
+
+  def handle_call({:retweet, args}, _from, state) do
+    {username, password, tweet_id} = args
+    username = String.trim(username) |> String.downcase()
+    {code, message} = credentialCheck(username, password, state)
+    cond do
+      code == :bad ->
+        {:reply, {code, message}, state}
+      true ->
+        {result, user} = DatabaseServer.getUser(state, username)
+        retweets = Map.fetch!(user, :retweets)
+        retweets = retweets ++ [tweet_id]
+        updatedInfo = Map.replace!(user, :retweets, Enum.uniq(retweets))
+        {code, message} = DatabaseServer.updateUser(state, updatedInfo)
+        {:reply, {code, message} , state}
+      end
+  end
+
+  def handle_call({:getMyRetweets, args}, _from, state) do
+    {username, password} = args
+    username = String.trim(username) |> String.downcase()
+    {code, message} = credentialCheck(username, password, state)
+    cond do
+      code == :bad ->
+        {:reply, {code, message}, state}
+      true ->
+        {result, user} = DatabaseServer.getUser(state, username)
+        retweetIDs = Map.fetch!(user, :retweets)
+        retweets = Enum.map(retweetIDs, fn curr_tid ->
+          {code, tweet} = DatabaseServer.getTweet(state, curr_tid)
+          {curr_tid, tweet}
+        end)
+        ret = List.flatten(retweets)|> Enum.sort_by(&(elem(&1, 0)))
+        IO.inspect(ret, label: "RETWEETSSSSSSSSSSSSSSSSSSSSS")
+        {:reply, {:ok, "Success"}, state}
     end
   end
 
@@ -232,10 +306,10 @@ defmodule TwitterProcessor do
       code1 == :bad ->
         {code1, message1}
       code2 == :bad || Map.fetch!(user, :ifDeleted) == true ->
-        {code2, "Invalid User ID"}
+        {code2, "Invalid Username"}
 #     Check if username and password is correct
       validateUser(username, password, user) == false ->
-        {:bad, "Invalid user id or password"}
+        {:bad, "Invalid Username or password"}
       true -> {:ok, "Valid"}
     end
     {code, message}

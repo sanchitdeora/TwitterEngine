@@ -24,14 +24,14 @@ defmodule UserDataServerTest do
     {:ok, server_pid} = GenServer.start(DatabaseServer, %{})
     {ret, reason} = GenServer.call(server_pid, {:deleteUser, "Ranbie"})
     assert ret == :bad
-    assert reason == "Invalid User ID"
+    assert reason == "Invalid Username"
     newUser = %{username: "ranbir", password: "roshan"}
     {ret, reason} = GenServer.call(server_pid, {:createUser, newUser})
     assert ret == :ok
     assert reason == "Success"
     {ret, reason} = GenServer.call(server_pid, {:deleteUser, "Ranbir"})
     assert ret == :bad
-    assert reason == "Invalid User ID"
+    assert reason == "Invalid Username"
     {ret, reason} = GenServer.call(server_pid, {:deleteUser, "ranbir"})
     assert ret == :ok
     assert reason == "Success"

@@ -82,7 +82,7 @@ defmodule TwitterTest do
     Logger.info("#{message}")
     #expect the data to be saved to database
     assert code == :bad
-    assert message == "Invalid User ID"
+    assert message == "Invalid Username"
 
     {code, message} = TwitterProcessor.postTweet(data, {"ranbir", "roshan", "My first tweet."})
 
@@ -117,13 +117,13 @@ defmodule TwitterTest do
     assert response == :redirect
     {code, message} = TwitterProcessor.subscribeUser(data, {"rabir", "roshan", "sid"})
     assert code == :bad
-    assert message == "Invalid User ID"
+    assert message == "Invalid Username"
 
     {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
     {code, message} = TwitterProcessor.subscribeUser(data, {"ranbir", "rosan", "sid"})
     assert code == :bad
-    assert message == "Invalid user id or password"
+    assert message == "Invalid Username or password"
 
     {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
@@ -235,7 +235,7 @@ defmodule TwitterTest do
     {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "#cool")
     assert code == :ok
     assert Enum.count(message) == 1
-    [{posted_by, _a, tweet}] = message
+    [{id, {posted_by, _a, tweet}}] = message
     assert posted_by == "ranbir"
     assert tweet == "My first tweet #cool."
 
@@ -263,7 +263,7 @@ defmodule TwitterTest do
     {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "#cool")
     assert code == :ok
     assert Enum.count(message) == 2
-    [{posted_by, _a, tweet}, {posted_by_2, _b, tweet_2}] = message
+    [{id1, {posted_by, _a, tweet}}, {id2, {posted_by_2, _b, tweet_2}}] = message
     assert posted_by == "ranbir"
     assert tweet == "My first tweet #cool."
     assert posted_by_2 == "jay"
@@ -275,8 +275,165 @@ defmodule TwitterTest do
     {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "#rockstar")
     assert code == :ok
     assert Enum.count(message) == 1
-    [{posted_by_2, _b, tweet_2}] = message
+    [{id2, {posted_by_2, _b, tweet_2}}] = message
     assert posted_by_2 == "jay"
     assert tweet_2 == "i am a #rockstar #cool."
   end
+
+  test "Get self mention" do
+    {:ok, server_pid} = GenServer.start(TwitterLoadBalance, %{})
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"ranbir", "roshan"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"sid", "jain"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"jay", "patel"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"ranbir", "roshan", "My first tweet #cool."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"jay", "patel", "i am a #rockstar #cool @ranbir."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getMyMentions(data, {"ranbir", "roshan"})
+    assert code == :ok
+    assert Enum.count(message) == 1
+    [{id2, {posted_by_2, _b, tweet_2}}] = message
+    assert posted_by_2 == "jay"
+    assert tweet_2 == "i am a #rockstar #cool @ranbir."
+
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"sid", "jain", "what a good day @ranbir."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getMyMentions(data, {"ranbir", "roshan"})
+    assert code == :ok
+    assert Enum.count(message) == 2
+    [{id2, {posted_by_2, _b, tweet_2}}, {id3, {posted_by_3, _a, tweet_3}}] = message
+    assert posted_by_2 == "jay"
+    assert tweet_2 == "i am a #rockstar #cool @ranbir."
+    assert posted_by_3 == "sid"
+    assert tweet_3 == "what a good day @ranbir."
+  end
+
+  test "Retweet Subscriber's tweets" do
+    {:ok, server_pid} = GenServer.start(TwitterLoadBalance, %{})
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"ranbir", "roshan"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"sid", "jain"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"jay", "patel"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"ranbir", "roshan", "My first tweet #cool."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"jay", "patel", "i am a #rockstar #cool @ranbir."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getMyMentions(data, {"ranbir", "roshan"})
+    assert code == :ok
+    assert Enum.count(message) == 1
+    [{id2, {posted_by_2, _b, tweet_2}}] = message
+    assert posted_by_2 == "jay"
+    assert tweet_2 == "i am a #rockstar #cool @ranbir."
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"sid", "jain", "what a good day @ranbir."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "#cool")
+    assert code == :ok
+    assert Enum.count(message) == 2
+    [{id1, {posted_by, _a, tweet}}, {id2, {posted_by_2, _b, tweet_2}}] = message
+    assert posted_by == "ranbir"
+    assert tweet == "My first tweet #cool."
+    assert posted_by_2 == "jay"
+    assert tweet_2 == "i am a #rockstar #cool @ranbir."
+
+    retweet = Enum.random(message)
+    {id, {posted_by, _a, tweet}} = retweet
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.retweet(data, {"ranbir", "roshan", id})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getMyMentions(data, {"ranbir", "roshan"})
+    assert code == :ok
+    assert Enum.count(message) == 2
+    [{id2, {posted_by_2, _b, tweet_2}}, {id3, {posted_by_3, _a, tweet_3}}] = message
+    assert posted_by_2 == "jay"
+    assert tweet_2 == "i am a #rockstar #cool @ranbir."
+    assert posted_by_3 == "sid"
+    assert tweet_3 == "what a good day @ranbir."
+
+    retweet1 = Enum.random(message)
+    {id, {posted_by, _a, tweet}} = retweet1
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.retweet(data, {"ranbir", "roshan", id})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getMyRetweets(data, {"ranbir", "roshan"})
+    assert code == :ok
+#    IO.inspect(message, label: "RETWEETSSSSSSSSSSSSSSSSSSSSS")
+    assert message == "Success"
+
+  end
+
 end
