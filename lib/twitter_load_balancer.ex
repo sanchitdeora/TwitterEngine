@@ -21,13 +21,13 @@ defmodule TwitterLoadBalance do
         pid
       end
 
-    state = %{ :processors => processerList, :processorCount => processorCount, :lastServerUsed => 0 }
+    state = %{ :processors => processerList, :processorCount => processorCount, :lastProcessorUsed => 0 }
     {:ok, state}
   end
 
   def handle_call({:chooseProcessor}, _from, state) do
-    nextProcessorIndex = rem(Map.fetch!(state, :lastServerUsed), Map.fetch!(state, :processorCount))
-    Map.replace!(state, :lastServerUsed, nextProcessorIndex)
+    nextProcessorIndex = rem(Map.fetch!(state, :lastProcessorUsed) + 1, Map.fetch!(state, :processorCount))
+    Map.replace!(state, :lastProcessorUsed, nextProcessorIndex)
     processerList = Map.fetch!(state, :processors)
     next_pid = Enum.at(processerList, nextProcessorIndex)
     {:reply, {:redirect, next_pid}, state}

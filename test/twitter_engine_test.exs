@@ -78,22 +78,11 @@ defmodule TwitterTest do
     assert code == :ok
     assert message == "Success"
 
-    {code, message} = TwitterProcessor.postTweet(data, {"ranbir", "roshan", "My first tweet."})
-
-    # expect a redirect to actual data server
-    assert response == :redirect
-
     {code, message} = TwitterProcessor.postTweet(data, {"ranir", "roshan", "My first tweet."})
     Logger.info("#{message}")
     #expect the data to be saved to database
     assert code == :bad
-    assert message == "Invalid user id or password"
-
-    {code, message} = TwitterProcessor.postTweet(data, {"ranir", "roshan", "My first tweet."})
-    Logger.info("#{message}")
-    #expect the data to be saved to database
-    assert code == :bad
-    assert message == "Invalid user id or password"
+    assert message == "Invalid User ID"
 
     {code, message} = TwitterProcessor.postTweet(data, {"ranbir", "roshan", "My first tweet."})
 
@@ -115,8 +104,8 @@ defmodule TwitterTest do
     assert response == :redirect
     {code, message} = TwitterProcessor.registerUser(data, {"sid", "jain"})
     assert code == :ok
-
     assert message == "Success"
+
     {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
     {code, message} = TwitterProcessor.registerUser(data, {"jay", "patel"})
@@ -128,7 +117,7 @@ defmodule TwitterTest do
     assert response == :redirect
     {code, message} = TwitterProcessor.subscribeUser(data, {"rabir", "roshan", "sid"})
     assert code == :bad
-    assert message == "Your Username is invalid"
+    assert message == "Invalid User ID"
 
     {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
@@ -180,36 +169,37 @@ defmodule TwitterTest do
     assert code == :ok
     assert message == "Success"
 
-      {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
-      {code, message} = TwitterProcessor.deleteUser(data, {"Mukul", "mehra"})
-      assert code == :ok
-      assert message == "Success"
+    {code, message} = TwitterProcessor.deleteUser(data, {"Mukul", "mehra"})
+    assert code == :ok
+    assert message == "Success"
 
 
-      {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
-      {code, message} = TwitterProcessor.subscribeUser(data, {"ranbir", "roshan", "Mukul"})
-      assert code == :bad
-      assert message == "User you are trying to subscribe does not exist"
+    {code, message} = TwitterProcessor.subscribeUser(data, {"ranbir", "roshan", "Mukul"})
+    assert code == :bad
+    assert message == "User you are trying to subscribe does not exist"
 
-      {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
-      {code, message} = TwitterProcessor.postTweet(data, {"sid", "jain", "sid's first tweet."})
-      assert code == :ok
-      assert message == "Success"
+    {code, message} = TwitterProcessor.postTweet(data, {"sid", "jain", "sid's first tweet."})
+    assert code == :ok
+    assert message == "Success"
 
-      {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
-      assert response == :redirect
-      {code, message} = TwitterProcessor.postTweet(data, {"jay", "patel", "Jay's first tweet."})
-      assert code == :ok
-      assert message == "Success"
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"jay", "patel", "Jay's first tweet."})
+    assert code == :ok
+    assert message == "Success"
 
-      {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
-      assert response == :redirect
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response == :redirect
     {code, message} = TwitterProcessor.postTweet(data, {"sid", "jain", "sid's second tweet."})
-      assert code == :ok
-      assert message == "Success"
+    assert code == :ok
+    assert message == "Success"
 
     {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
     assert response == :redirect
@@ -218,4 +208,75 @@ defmodule TwitterTest do
 #    IO.inspect(message)
     assert message == "Success"
     end
+
+  test "Get Tweets By HashTag" do
+    {:ok, server_pid} = GenServer.start(TwitterLoadBalance, %{})
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"ranbir", "roshan"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.registerUser(data, {"jay", "patel"})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"ranbir", "roshan", "My first tweet #cool."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "#cool")
+    assert code == :ok
+    assert Enum.count(message) == 1
+    [{posted_by, _a, tweet}] = message
+    assert posted_by == "ranbir"
+    assert tweet == "My first tweet #cool."
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "")
+    assert code == :bad
+    assert message == "Hashtag cannot be empty"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "")
+    assert code == :bad
+    assert message == "Hashtag cannot be empty"
+
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.postTweet(data, {"jay", "patel", "i am a #rockstar #cool."})
+    assert code == :ok
+    assert message == "Success"
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "#cool")
+    assert code == :ok
+    assert Enum.count(message) == 2
+    [{posted_by, _a, tweet}, {posted_by_2, _b, tweet_2}] = message
+    assert posted_by == "ranbir"
+    assert tweet == "My first tweet #cool."
+    assert posted_by_2 == "jay"
+    assert tweet_2 == "i am a #rockstar #cool."
+
+
+    {response, data} = TwitterLoadBalance.chooseProcessor(server_pid)
+    assert response==:redirect
+    {code, message} = TwitterProcessor.getTweetsFromHashtags(data, "#rockstar")
+    assert code == :ok
+    assert Enum.count(message) == 1
+    [{posted_by_2, _b, tweet_2}] = message
+    assert posted_by_2 == "jay"
+    assert tweet_2 == "i am a #rockstar #cool."
+  end
 end

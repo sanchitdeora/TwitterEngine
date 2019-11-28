@@ -22,19 +22,29 @@ defmodule DatabaseServer do
     GenServer.call(server, {:getUser, args})
   end
 
-  def getTweet(server, args) do
-    GenServer.call(server, {:getTweet, args})
-  end
-
   def tweet(server, args) do
     GenServer.call(server, {:tweet, args})
   end
 
+  def getTweet(server, args) do
+    GenServer.call(server, {:getTweet, args})
+  end
+
+  def putHashtag(server, args) do
+    GenServer.call(server, {:putHashtag, args})
+  end
+
+  def getHashtag(server, args) do
+    GenServer.call(server, {:getHashtag, args})
+  end
+
+
   # SERVER SIDE
   def init(var) do
-    userTable = :ets.new(:user_lookup, [:set, :protected])
-    tweetTable = :ets.new(:tweet_lookup, [:set, :protected])
-    state = %{:userTable => userTable, :tweetTable => tweetTable, :tweetCountID => 0}
+    userTable = :ets.new(:userTable, [:set, :protected])
+    tweetTable = :ets.new(:tweetTable, [:set, :protected])
+    hashtagTable = :ets.new(:hashtagTable, [:set, :protected])
+    state = %{:userTable => userTable, :tweetTable => tweetTable, :hashtagTable => hashtagTable, :tweetCountID => 0}
     {:ok, state}
   end
 
@@ -69,6 +79,16 @@ defmodule DatabaseServer do
     end
   end
 
+  def handle_call({:updateUser, user}, _from, state) do
+    data = :ets.lookup(Map.fetch!(state, :userTable), Map.fetch!(user, :username))
+    if Enum.count(data) > 0 do
+      :ets.insert(Map.fetch!(state, :userTable), {Map.fetch!(user, :username), user})
+      {:reply, {:ok, "Success"}, state}
+    else
+      {:reply, {:bad, "Invalid User ID"}, state}
+    end
+  end
+
   def handle_call({:getTweet, tweet_id}, _from, state) do
     [{tweet_id, tweet}] = :ets.lookup(Map.fetch!(state, :tweetTable), tweet_id)
     {:reply, {:ok, tweet}, state}
@@ -77,17 +97,29 @@ defmodule DatabaseServer do
   def handle_call({:tweet, tweet}, _from, state) do
     tweet_id = Map.fetch!(state, :tweetCountID)
     state = Map.replace!(state, :tweetCountID, tweet_id + 1)
-    :ets.insert_new(Map.fetch!(state, :tweetTable), {tweet_id,tweet})
+    :ets.insert_new(Map.fetch!(state, :tweetTable), {tweet_id, tweet})
     {:reply, {:ok, tweet_id}, state}
   end
 
-  def handle_call({:updateUser, user}, _from, state) do
-    data = :ets.lookup(Map.fetch!(state, :userTable), Map.fetch!(user, :username))
+  def handle_call({:putHashtag, args}, _from, state) do
+    {hash, tweet_id} = args
+    data = :ets.lookup(Map.fetch!(state, :hashtagTable), hash)
     if Enum.count(data) > 0 do
-      :ets.insert(Map.fetch!(state, :userTable), {Map.fetch!(user, :username), user})
-      {:reply, {:ok, "Success"}, state}
+      {hash, tweetList} = Enum.at(data, 0)
+      :ets.insert(Map.fetch!(state, :hashtagTable), {hash, tweetList ++ [tweet_id]})
     else
-      {:reply, {:bad, "Invalid User ID"}, state}
+      :ets.insert_new(Map.fetch!(state, :hashtagTable), {hash, [tweet_id]})
+    end
+    {:reply, {:ok, "Success"}, state}
+  end
+
+  def handle_call({:getHashtag, hashtag}, _from, state) do
+    data = :ets.lookup(Map.fetch!(state, :hashtagTable), hashtag)
+    if Enum.count(data) > 0 do
+      {hash, tweetList} = Enum.at(data, 0)
+      {:reply, {:ok, tweetList}, state}
+    else
+      {:reply, {:ok, []}, state}
     end
   end
 end
