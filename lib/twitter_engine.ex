@@ -12,7 +12,7 @@ defmodule TwitterEngine do
 
   # SERVER SIDE
   def init(init_arg) do
-    processorCount = 5
+    processorCount = 100
     {:ok, db_pid} = DatabaseServer.start_link([])
 
     processerList =

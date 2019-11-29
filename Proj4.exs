@@ -29,7 +29,7 @@ defmodule Proj4 do
 
   Enum.map(client_ids, fn curr ->
     {:ok, client_id} = curr
-    Process.sleep(1000)
+#    Process.sleep(100)
     _state_after_exec = :sys.get_state(client_id, :infinity)
   end)
 #  Utility.generateRandomTweet(70, usernameList)

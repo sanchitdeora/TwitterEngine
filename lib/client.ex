@@ -48,7 +48,7 @@ defmodule Client do
 
 
   def randomDecisionMaker(state, pid, tweetCount) do
-    tweetFactor = 0.2
+    tweetFactor = 0.4
     limit = (tweetCount * tweetFactor) |> :erlang.trunc()
     # Tweet
     length = Enum.random(20..30)
@@ -79,7 +79,7 @@ defmodule Client do
         # Get Tweets From a particular Hashtag
         hashtags = Utility.getHashTagList()
         tag = Enum.random(hashtags)
-        Process.sleep(3000)
+#        Process.sleep(3000)
 #        Client.getTweetsFromHashtags(pid, tag)
         {response, proccessor_id} = TwitterEngine.chooseProcessor(Map.fetch!(state, :server_pid))
         username = Map.fetch!(state, :username)
@@ -95,7 +95,7 @@ defmodule Client do
 
       d < 60 ->
          # Get Tweets From My Subscribed Users
-        Process.sleep(3000)
+#        Process.sleep(3000)
 #        Client.getMySubscribedTweets(pid)
         {response, proccessor_id} = TwitterEngine.chooseProcessor(Map.fetch!(state, :server_pid))
         username = Map.fetch!(state, :username)
@@ -108,9 +108,9 @@ defmodule Client do
           Client.retweet(pid, retweet)
         end
 
-      d < 75 ->
+      d < 70 ->
         # Get Tweets where I am mentioned
-        Process.sleep(3000)
+#        Process.sleep(100)
 #        Client.getMyMentions(pid)
         {response, proccessor_id} = TwitterEngine.chooseProcessor(Map.fetch!(state, :server_pid))
         username = Map.fetch!(state, :username)
@@ -123,22 +123,22 @@ defmodule Client do
           Client.retweet(pid, retweet)
         end
 
-      d < 90
+      d < 80 ->
 #        # Get My Retweets
 #        Process.sleep(3000)
         Client.getMyRetweets(pid)
 #
-      d < 95
+      d < 90 ->
         # Stop the Client
         Client.done(pid)
       true ->
         # Delete Account
-        Process.sleep(1000)
+#        Process.sleep(1000)
         Client.deleteAccount(pid)
     end
     ifDone = Map.fetch!(state, :ifDone)
     if tweetCount > 0 &&  ifDone == false do
-      Process.sleep(1000)
+#      Process.sleep(1000)
       randomDecisionMaker(state, pid, tweetCount)
     end
   end
@@ -161,7 +161,7 @@ defmodule Client do
     password = Map.fetch!(state, :password)
     userid = Map.fetch!(state, :userId)
     {code, message} = TwitterProcessor.registerUser(proccessor_id, {username, password})
-    IO.puts("[User#{userid}] #{username} has joined Twitter!!")
+#    IO.puts("[User#{userid}] #{username} has joined Twitter!!")
     tweetCount = Map.fetch!(state, :tweetCount)
     randomDecisionMaker(state, mypid, tweetCount)
     {:noreply, state}
@@ -173,7 +173,7 @@ defmodule Client do
     password = Map.fetch!(state, :password)
     userid = Map.fetch!(state, :userId)
     {code, message} = TwitterProcessor.deleteUser(proccessor_id, {username, password})
-    IO.puts("[User#{userid}] #{username} just left Twitter. :( ")
+#    IO.puts("[User#{userid}] #{username} just left Twitter. :( ")
     {:noreply, state}
   end
 
@@ -251,7 +251,7 @@ defmodule Client do
     state = Map.replace!(state, :ifDone, true)
     username = Map.fetch!(state, :username)
     userid = Map.fetch!(state, :userId)
-    IO.puts("[User#{userid}] #{username} is done for the day!")
+#    IO.puts("[User#{userid}] #{username} is done for the day!")
     {:noreply, state}
   end
 
