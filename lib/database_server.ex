@@ -50,20 +50,19 @@ defmodule DatabaseServer do
 
   def handle_call({:createUser, userData}, _from, state) do
 
-    ifSuccess = :ets.insert_new(Map.fetch!(state, :userTable), {Map.fetch!(userData, :username), userData})
-    if ifSuccess do
-      {:reply, {:ok, "Success"}, state}
+    ifSuccessful = :ets.insert_new(Map.fetch!(state, :userTable), {Map.fetch!(userData, :username), userData})
+    if ifSuccessful do
+      {:reply, {:ok, "Successful"}, state}
     else
       {:reply, {:bad, "Username already in use"}, state}
     end
   end
 
   def handle_call({:deleteUser, username}, _from, state) do
-    #IO.inspect(username)
     data = :ets.lookup(Map.fetch!(state, :userTable), username)
     if Enum.count(data) > 0 do
       :ets.delete(Map.fetch!(state, :userTable), username)
-      {:reply, {:ok, "Success"}, state}
+      {:reply, {:ok, "Successful"}, state}
     else
       {:reply, {:bad, "Invalid Username"}, state}
     end
@@ -83,7 +82,7 @@ defmodule DatabaseServer do
     userList = :ets.lookup(Map.fetch!(state, :userTable), Map.fetch!(user, :username))
     if Enum.count(userList) > 0 do
       :ets.insert(Map.fetch!(state, :userTable), {Map.fetch!(user, :username), user})
-      {:reply, {:ok, "Success"}, state}
+      {:reply, {:ok, "Successful"}, state}
     else
       {:reply, {:bad, "Invalid Usernam  e"}, state}
     end
@@ -112,7 +111,7 @@ defmodule DatabaseServer do
       [tweetId]
     end
     :ets.insert(Map.fetch!(state, :hashtagTable), {hash, tweetList})
-    {:reply, {:ok, "Success"}, state}
+    {:reply, {:ok, "Successful"}, state}
   end
   
   def handle_call({:getHashtag, hashtag}, _from, state) do

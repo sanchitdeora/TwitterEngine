@@ -1,21 +1,27 @@
 # TwitterEngine
+Distributed Operating System - Project 4.1  
 
-**TODO: Add description**
+## Problem Definition  
 
-## Installation
+To implement a Twitter-like engine and (in Project 4.2) pair up with Web Sockets to provide full functionality.
 
-If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `twitter_engine` to your list of dependencies in `mix.exs`:
+### Team Members:  
+Sanchit Deora(8909 - 4939)  
+Rohit Devulapalli (4787- 4434)
+ 
+### Functionalities Implemented  
+Register Account    
+Delete Acount    
+Post Tweets  
+Subscribe other users  
+Get Tweets for specific hashtags  
+Get Tweets where the user is mentioned
+Retweet a tweet
 
-```elixir
-def deps do
-  [
-    {:twitter_engine, "~> 0.1.0"}
-  ]
-end
-```
+### Largest Network of nodes  
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/twitter_engine](https://hexdocs.pm/twitter_engine).
+### Instructions to run the code:  
+mix run project3.exs numNodes numRequests.  
+This command is for Windows OS.    
 
+Output prints the Maximum number of hops made in the network.

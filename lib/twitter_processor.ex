@@ -22,8 +22,8 @@ defmodule TwitterProcessor do
     GenServer.call(server, {:subscribeUser, args})
   end
 
-  def postTweet(server,args) do
-    GenServer.call(server, {:postTweet, args})
+  def sendTweet(server,args) do
+    GenServer.call(server, {:sendTweet, args})
   end
 
   def getTweetsFromHashtags(server, args) do
@@ -86,7 +86,7 @@ defmodule TwitterProcessor do
     end
   end
 
-  def handle_call({:postTweet, args}, _from, state) do
+  def handle_call({:sendTweet, args}, _from, state) do
     {username, password, tweet} = args
     username = String.trim(username) |> String.downcase()
     tweet = String.trim(tweet)
@@ -178,15 +178,18 @@ defmodule TwitterProcessor do
               []
             end
         end)
-        IO.inspect(List.flatten(subscribedTweets)|> Enum.sort_by(&(elem(&1, 0))))
-        {:reply, {:ok, "Success"}, state}
+        subscribedTweets = subscribedTweets |> List.flatten()|> Enum.sort_by(&(elem(&1, 0)))
+        subscribedTweets = Enum.reverse(subscribedTweets)
+#        IO.inspect(subscribedTweets, label: "SUBSCRIBED TWEETS for #{username}")
+        {:reply, {:ok, subscribedTweets}, state}
     end
   end
 
   def handle_call({:getTweetsFromHashtags, tag}, _from, state) do
     {code, message} = ifStringNonEmpty(tag, "Hashtag")
     cond do
-      code == :bad -> {:reply, {code, message}, state}
+      code == :bad ->
+        {:reply, {code, message}, state}
       String.at(tag, 0) != "#" -> {:reply, {:bad, "Hashtag must begin with hash."}, state}
       true ->
         {code, tweetIDList} = DatabaseServer.getHashtag(state, tag)
@@ -194,9 +197,9 @@ defmodule TwitterProcessor do
           {code, tweet} = DatabaseServer.getTweet(state, curr_tid)
           {curr_tid, tweet}
         end)
-        ret = List.flatten(tweets)|> Enum.sort_by(&(elem(&1, 0)))
-#        IO.inspect(ret)
-        {:reply, {:ok, ret}, state}
+        tweets = tweets |> List.flatten()|> Enum.sort_by(&(elem(&1, 0)))
+        tweets = Enum.reverse(tweets)
+        {:reply, {:ok, tweets}, state}
     end
   end
 
@@ -214,9 +217,10 @@ defmodule TwitterProcessor do
           {code, tweet} = DatabaseServer.getTweet(state, curr_tid)
           {curr_tid, tweet}
         end)
-        ret = List.flatten(mentions)|> Enum.sort_by(&(elem(&1, 0)))
-        IO.inspect(ret)
-        {:reply, {:ok, ret}, state}
+        mentions = mentions |> List.flatten()|> Enum.sort_by(&(elem(&1, 0)))
+        mentions = Enum.reverse(mentions)
+#        IO.inspect(mentions, label: "MENTIONS for #{username}")
+        {:reply, {:ok, mentions}, state}
     end
   end
 
@@ -251,13 +255,14 @@ defmodule TwitterProcessor do
           {code, tweet} = DatabaseServer.getTweet(state, curr_tid)
           {curr_tid, tweet}
         end)
-        ret = List.flatten(retweets)|> Enum.sort_by(&(elem(&1, 0)))
-        IO.inspect(ret, label: "RETWEETSSSSSSSSSSSSSSSSSSSSS")
-        {:reply, {:ok, "Success"}, state}
+        retweets = retweets |> List.flatten()|> Enum.sort_by(&(elem(&1, 0)))
+        retweets = Enum.reverse(retweets)
+#        IO.inspect(retweets, label: "RETWEETS for #{username}")
+        {:reply, {:ok, retweets}, state}
     end
   end
 
-  def validateUser(name, password, userObject) do
+  defp validateUser(name, password, userObject) do
     if (name == Map.fetch!(userObject, :username) && password == Map.fetch!(userObject, :password)) do
       true
     else
@@ -265,15 +270,15 @@ defmodule TwitterProcessor do
     end
   end
 
-  def ifStringNonEmpty(data, label) do
+  defp ifStringNonEmpty(data, label) do
     if String.length(String.trim(data)) > 0 do
-      {:ok, "Success"}
+      {:ok, "Successful"}
     else
       {:bad, label <> " cannot be empty"}
     end
   end
 
-  def ifCredentialsNonEmpty(name, password) do
+  defp ifCredentialsNonEmpty(name, password) do
     {code, message} = ifStringNonEmpty(name, "Username")
     if code == :ok do
       ifStringNonEmpty(password, "Password")
@@ -282,7 +287,7 @@ defmodule TwitterProcessor do
     end
   end
 
-  def credentialCheck(username, state) do
+  defp credentialCheck(username, state) do
     #    Check if username and password is not an empty string
     {code1, message1} = ifStringNonEmpty(username, "Subscribing username")
     #    Check if user exists or not
@@ -297,7 +302,7 @@ defmodule TwitterProcessor do
     {code, message}
   end
 
-  def credentialCheck(username, password, state) do
+  defp credentialCheck(username, password, state) do
 #    Check if username and password is not an empty string
     {code1, message1} = ifCredentialsNonEmpty(username, password)
 #    Check if user exists or not
